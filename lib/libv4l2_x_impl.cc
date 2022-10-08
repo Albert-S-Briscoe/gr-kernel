@@ -1,6 +1,7 @@
 /* -*- c++ -*- */
 /* 
  * Copyright 2013 Antti Palosaari <crope@iki.fi>
+ * Copyright 2022 Albert Briscoe
  * 
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +23,10 @@
 #include "config.h"
 #endif
 
-#include <gr_io_signature.h>
+#include <libv4l2.h>
+#include <fcntl.h>
 #include "libv4l2_x_impl.h"
+#include <gnuradio/io_signature.h>
 #include <sys/mman.h>
 #include <linux/videodev2.h>
 
@@ -41,8 +44,8 @@
 #define CID_TUNER_IF                  ((V4L2_CID_USER_BASE | 0xf000) + 12)
 #define CID_TUNER_GAIN                ((V4L2_CID_USER_BASE | 0xf000) + 13)
 
-#define V4L2_PIX_FMT_SDR_U8     v4l2_fourcc('D', 'U', '0', '8') /* unsigned 8-bit */
-#define V4L2_PIX_FMT_SDR_U16LE  v4l2_fourcc('D', 'U', '1', '6') /* unsigned 16-bit LE */
+#define V4L2_PIX_FMT_SDR_U8     v4l2_fourcc('C', 'U', '0', '8') /* unsigned 8-bit */
+#define V4L2_PIX_FMT_SDR_U16LE  v4l2_fourcc('C', 'U', '1', '6') /* unsigned 16-bit LE */
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
@@ -63,18 +66,22 @@ namespace gr {
 	namespace kernel {
 
 	libv4l2_x::sptr
-	libv4l2_x::make(const char *filename)
+	libv4l2_x::make(const char *filename, double samp_rate, double freq, double bandwidth, double gain)
 	{
-		return gnuradio::get_initial_sptr (new libv4l2_x_impl(filename));
+		return gnuradio::make_block_sptr<libv4l2_x_impl>(filename, samp_rate, freq, bandwidth, gain);
 	}
 
 	/*
 	 * The private constructor
 	 */
-	libv4l2_x_impl::libv4l2_x_impl(const char *filename)
-		: gr_sync_block("libv4l2_x",
-				gr_make_io_signature(0, 0, 0),
-				gr_make_io_signature(1, 1, sizeof (gr_complex)))
+	libv4l2_x_impl::libv4l2_x_impl(const char *filename,
+	                               double samp_rate,
+	                               double freq,
+	                               double bandwidth,
+	                               double gain)
+		: gr::sync_block("libv4l2_x",
+				gr::io_signature::make(0, 0, 0),
+				gr::io_signature::make(1, 1, sizeof (gr_complex)))
 	{
 		struct v4l2_format fmt;
 		struct v4l2_buffer buf;
@@ -93,7 +100,7 @@ namespace gr {
 		}
 
 		pixelformat = V4L2_PIX_FMT_SDR_U8;
-		pixelformat = V4L2_PIX_FMT_SDR_U16LE;
+		//pixelformat = V4L2_PIX_FMT_SDR_U16LE;
 
 		CLEAR(fmt);
 		fmt.type = V4L2_BUF_TYPE_SDR_CAPTURE;
@@ -143,6 +150,12 @@ namespace gr {
 		// start streaming
 		type = V4L2_BUF_TYPE_SDR_CAPTURE;
 		xioctl(fd, VIDIOC_STREAMON, &type);
+
+		// set variables on startup
+		libv4l2_x_impl::set_samp_rate(samp_rate);
+		libv4l2_x_impl::set_center_freq(freq);
+		libv4l2_x_impl::set_bandwidth(bandwidth);
+		libv4l2_x_impl::set_tuner_gain(gain);
 	}
 
 	/*

@@ -21,7 +21,7 @@
 #ifndef INCLUDED_KERNEL_LIBV4L2_X_IMPL_H
 #define INCLUDED_KERNEL_LIBV4L2_X_IMPL_H
 
-#include <kernel/libv4l2_x.h>
+#include <gnuradio/kernel/libv4l2_x.h>
 
 namespace gr {
 	namespace kernel {
@@ -49,7 +49,7 @@ namespace gr {
 		unsigned int recebuf_mmap_index;
 
 	public:
-		libv4l2_x_impl(const char *filename);
+		libv4l2_x_impl(const char *filename, double samp_rate, double freq, double bandwidth, double gain);
 		~libv4l2_x_impl();
 
 		void set_samp_rate(double samp_rate);
